@@ -4,6 +4,7 @@ var Twig = require('twig');
 var twig = Twig.twig;
 var fs = require('fs');
 var formTemplate;
+var googleContent ;
 templateFile = __dirname + '/form.html';
 fs.readFile(templateFile, 'utf8', function (err, data) {
     if (err) {
@@ -15,10 +16,35 @@ fs.readFile(templateFile, 'utf8', function (err, data) {
     });
 });
 
+function getGoogle(url,Response)
+{
+    var body = '';
+    http.get("http://www.google.com.au", function(response) {
+        // Continuously update stream with data
+        response.on('data', function(d) {
+//            console.log(d);
+            body += d;
+        });
+        response.on('end', function(data) {
+            console.log('end');
+            // Data reception is done, do whatever with it!
+            console.log(body);
+        });
+    });
+
+}
+
+
+
 function onRequest(request, response) {
     response.writeHead(200, {"Content-Type": "text/html"});
+    getGoogle(response);
+    return;
     var url_parts = url.parse(request.url, true);
     var query = url_parts.query;
+    if (query.imageUrl && query.pinUrl){
+
+    }
     var formHtml = getFormHtml(query);
     if (formHtml) {
         response.write(formHtml);
@@ -58,3 +84,6 @@ http.createServer(onRequest)
 
 console.log("Server has started on port 8888. Try http://localhost:8888")
 
+getGoogle();
+
+//http://localhost:8888/?pinUrl=https%3A%2F%2Fgithub.com%2Fjustjohn%2Ftwig.js%2Fwiki%2FImplementation-Notes&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
