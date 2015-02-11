@@ -31,6 +31,21 @@ function getUrlContents(param)
 }
 
 
+function logError(err)
+{
+    if (typeof err === 'object') {
+        if (err.message) {
+            console.log('\nMessage: ' + err.message)
+        }
+        if (err.stack) {
+            console.log('\nStacktrace:')
+            console.log('====================')
+            console.log(err.stack);
+        }
+    } else {
+        console.log('dumpError :: argument is not an object');
+    }
+}
 function responseContentToCallBack(getUrlResponse)
 {
     try{
@@ -58,7 +73,7 @@ function responseContentToCallBack(getUrlResponse)
         }.bind(this));
     }
     catch(error){
-        console.log(error);
+        logError(error);
     }
 
 
@@ -73,13 +88,13 @@ function afterContents(param)
             content = cheerio.load(param.body)('body').prepend(imageTag).prepend(formContent).html();
         }
         else{
-            content = cheerio.load(param.body)('body').prepend(formContent).html();
+            content = getFormHtml(param.request,{formType:'full'});
         }
         param.response.write(content);
         param.response.end();
     }
     catch (error){
-        console.log(error);
+        logError(error);
     }
 
 }
@@ -119,7 +134,7 @@ function onRequest(request, response) {
         }
     }
     catch(err){
-        console.log(err);
+        logError(err);
     }
 
 }
