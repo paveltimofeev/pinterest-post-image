@@ -18,77 +18,100 @@ function readTwigFile(err,data)
         id: "formTemplate", // id is optional, but useful for referencing the template later
         data: data
     });
+    templateParam.formTag = cheerio.load(data)('form').toString();
+    templateParam.formTagTemplate = twig({
+        id: "formTagTemplate", // id is optional, but useful for referencing the template later
+        data: templateParam.formTag
+    });
 }
-function getUrlContents(url,param)
+function getUrlContents(param)
 {
-    http.get(url, responseContentToCallBack.bind({param:param}));
+    var url = param.request.url_parts.query.pinUrl;
+    http.get('http://www.google.com.au' ,responseContentToCallBack.bind({param:param}));
 }
 
 
 function responseContentToCallBack(getUrlResponse)
 {
-    var body = '';
-    this.getUrlResponse = getUrlResponse;
-    // Continuously update stream with data
-    getUrlResponse.on('data', function(d) {
-        console.log('adding data to body');
-        body += d;
-    });
-    getUrlResponse.on('end', function() {
-        console.log('end');
-        if (this.param && this.param.callBack){
-            this.param.body = body;
-            delete this.getUrlResponse;
-            this.param.callBack(this.param);
-        }
-    }.bind(this));
+    try{
+        var body = '';
+        this.getUrlResponse = getUrlResponse;
+        // Continuously update stream with data
+        getUrlResponse.on('data', function(d) {
+            console.log('adding data to body');
+            body += d;
+        });
+        getUrlResponse.on('end', function() {
+            console.log('end');
+            if (this.param && this.param.callBack){
+                this.param.body = body;
+                delete this.getUrlResponse;
+                this.param.callBack(this.param);
+            }
+        }.bind(this));
+    }
+    catch (error){
+        console.log(error);
+    }
+
 }
 function afterContents(param)
 {
-    var jQuery = cheerio.load(param.body);
-    var imageTag = '<img src="imageUrl">'.replace('imageUrl',param.imageUrl);
-    jQuery('body').prepend(imageTag);
-    content = jQuery.html();
-    param.response.write(content);
-    param.response.end();
+    try{
+        var formContent = getFormHtml(param.request,{formType:'tag'});
+        var content;
+        if (param.request.url_parts.query.imageUrl &&  param.request.url_parts.query.pinUrl){
+            var imageTag = '<img src="imageUrl">'.replace('imageUrl',param.request.url_parts.query.imageUrl);
+            content = cheerio.load(param.body)('body').prepend(imageTag).prepend(formContent).html();
+        }
+        else{
+            content = cheerio.load(param.body)('body').prepend(formContent).html();
+        }
+        param.response.write(content);
+        param.response.end();
+    }
+    catch (error){
+        console.log(error);
+    }
+
 }
 
 function onRequest(request, response) {
-    var url_parts = url.parse(request.url, true);
-    var query = url_parts.query;
-    response.writeHead(200, {"Content-Type": "text/html"});
-    if (query.action && (query.action == 'pinImage')){
-        if (!templateParam.formTemplate){
-            response.write('twig file not loaded yet. Please refresh')
-            response.end();
-            return;
+    try{
+        request.url_parts = url.parse(request.url, true);
+        var query = request.url_parts.query;
+        response.writeHead(200, {"Content-Type": "text/html"});
+        if (query.action && (query.action == 'pinImage')){
+            if (!templateParam.formTemplate){
+                response.write('twig file not loaded yet. Please refresh')
+                response.end();
+                return;
+            }
+            var param ={
+                callBack:afterContents,
+                request:request,
+                response:response,
+                templateParam:templateParam
+            };
+            if (query.pinUrl && query.imageUrl){
+                getUrlContents(param);
+            }
+            else{
+                afterContents(param);
+            }
         }
-        getUrlContents('http://www.google.com.au',{
-            callBack:afterContents,
-            request:request,
-            response:response,
-            imageUrl:'http://www.pinceladasdaweb.com.br/blog/uploads/js-templates/twig.jpg',
-            formTemplate:templateParam.formTemplate
-        });
-        return;
-        if (query.imageUrl && query.pinUrl){
 
-        }
-        var formHtml = getFormHtml(query);
-        if (formHtml) {
-            response.write(formHtml);
+        //could not detect response
+        else{
+            response.write("Hello <b>World</b> \n <br/>");
+            response.write(request.url + "\n <br/>");
+            response.write(query.toString() + "Query \n <br/>");
+            response.write(getCurrentDateString());
             response.end();
-            return;
         }
     }
-
-    //could not detect response
-    else{
-        response.write("Hello <b>World</b> \n <br/>");
-        response.write(request.url + "\n <br/>");
-        response.write(query.toString() + "Query \n <br/>");
-        response.write(getCurrentDateString());
-        response.end();
+    catch(err){
+        console.log(err);
     }
 
 }
@@ -101,14 +124,22 @@ function getCurrentDateString() {
     return dateString;
 }
 
-function getFormHtml(parameters) {
+function getFormHtml(request, parameters) {
     if (!templateParam.formTemplate) {
         return '';
     }
-    parameters.pinUrl = parameters.pinUrl ? parameters.pinUrl : '';
-    parameters.imageUrl = parameters.imageUrl ? parameters.imageUrl : '';
-
-    var output = templateParam.formTemplate.render(parameters);
+    if (!parameters){
+        parameters = {};
+    }
+    parameters.pinUrl = request.url_parts.query.pinUrl ? request.url_parts.query.pinUrl : '';
+    parameters.imageUrl = request.url_parts.query.imageUrl ? request.url_parts.query.imageUrl : '';
+    var output;
+    if (parameters.formType && (parameters.formType =='tag')){
+        output = templateParam.formTagTemplate.render(parameters);
+    }
+    else{
+        output = templateParam.formTemplate.render(parameters);
+    }
     return output;
 }
 
@@ -121,4 +152,5 @@ console.log("Server has started on port 8888. Try http://localhost:8888")
 
 //getUrlContents('http://www.google.com.au',afterContents);
 
-//http://localhost:8888/?pinUrl=https%3A%2F%2Fgithub.com%2Fjustjohn%2Ftwig.js%2Fwiki%2FImplementation-Notes&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
+//http://localhost:8888/?action=pinImage&pinUrl=http%3A%2F%2Fgithub.com%2Fjustjohn%2Ftwig.js%2Fwiki%2FImplementation-Notes&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
+//http://localhost:8888/?action=pinImage&pinUrl=http%3A%2F%2Fwww.google.com&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
