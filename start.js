@@ -27,7 +27,7 @@ function readTwigFile(err,data)
 function getUrlContents(param)
 {
     var url = param.request.url_parts.query.pinUrl;
-    http.get('http://www.google.com.au' ,responseContentToCallBack.bind({param:param}));
+    http.get(url ,responseContentToCallBack.bind({param:param}));
 }
 
 
@@ -43,6 +43,13 @@ function responseContentToCallBack(getUrlResponse)
         });
         getUrlResponse.on('end', function() {
             console.log('end');
+            var url  = this.param.request.url_parts.query.pinUrl;
+            if (!body){
+                var message = 'Unable to load url <a href="' + url +
+                    '">' + url + '</a>' ;
+                this.param.response.write(message);
+                this.param.response.end();
+            }
             if (this.param && this.param.callBack){
                 this.param.body = body;
                 delete this.getUrlResponse;
@@ -50,9 +57,10 @@ function responseContentToCallBack(getUrlResponse)
             }
         }.bind(this));
     }
-    catch (error){
+    catch(error){
         console.log(error);
     }
+
 
 }
 function afterContents(param)
@@ -154,3 +162,4 @@ console.log("Server has started on port 8888. Try http://localhost:8888")
 
 //http://localhost:8888/?action=pinImage&pinUrl=http%3A%2F%2Fgithub.com%2Fjustjohn%2Ftwig.js%2Fwiki%2FImplementation-Notes&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
 //http://localhost:8888/?action=pinImage&pinUrl=http%3A%2F%2Fwww.google.com&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
+//http://localhost:8888/?action=pinImage&pinUrl=http%3A%2F%2Fpeshawarjobs.com&imageUrl=http%3A%2F%2Fwww.pinceladasdaweb.com.br%2Fblog%2Fuploads%2Fjs-templates%2Ftwig.jpg
