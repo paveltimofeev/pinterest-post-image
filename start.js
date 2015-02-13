@@ -1,4 +1,5 @@
-var http = require("http");
+var http = require('follow-redirects').http;
+var https = require('follow-redirects').https;
 var url = require('url');
 var Twig = require('twig');
 var twig = Twig.twig;
@@ -27,7 +28,12 @@ function readTwigFile(err,data)
 function getUrlContents(param)
 {
     var url = param.request.url_parts.query.pinUrl;
-    http.get(url ,responseContentToCallBack.bind({param:param}));
+    if (url.substring(0,5) == 'https'){
+        https.get(url ,responseContentToCallBack.bind({param:param}));
+    }
+    else{
+        http.get(url ,responseContentToCallBack.bind({param:param}));
+    }
 }
 
 
@@ -52,8 +58,8 @@ function responseContentToCallBack(getUrlResponse)
         var body = '';
         this.getUrlResponse = getUrlResponse;
         // Continuously update stream with data
-        getUrlResponse.on('data', function(d) {
-            console.log('adding data to body');
+        getUrlResponse.on('data', function(d,x,y) {
+            console.log('adding data to bod ');
             body += d;
         });
         getUrlResponse.on('end', function() {
@@ -85,7 +91,16 @@ function afterContents(param)
         var content;
         if (param.request.url_parts.query.imageUrl &&  param.request.url_parts.query.pinUrl){
             var imageTag = '<img src="imageUrl">'.replace('imageUrl',param.request.url_parts.query.imageUrl);
-            content = cheerio.load(param.body)('body').prepend(imageTag).prepend(formContent).html();
+            var jQ =cheerio.load(param.body)
+                jQ('body').prepend(imageTag).prepend(formContent);
+            var content = jQ.html();
+
+
+            var baseUrl = param.request.url_parts.query.pinUrl.split('/').reverse()[0];
+            var baseTag = '<base href="baseUrl" />'.replace('baseUrl',baseUrl);
+            var jQ = cheerio.load(content);
+            jQ('head').prepend(baseTag);
+            content = jQ.html();
         }
         else{
             content = getFormHtml(param.request,{formType:'full'});
